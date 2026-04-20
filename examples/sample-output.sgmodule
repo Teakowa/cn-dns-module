@@ -1,0 +1,10 @@
+#!name=CN DNS Split
+#!desc=Auto-generated CN domain -> CN DoH mapping for Surge 4.x
+
+[Host]
+bilibili.com = server:https://dns.alidns.com/dns-query
+*.bilibili.com = server:https://dns.alidns.com/dns-query
+douyin.com = server:https://dns.alidns.com/dns-query
+*.douyin.com = server:https://dns.alidns.com/dns-query
+qq.com = server:https://dns.alidns.com/dns-query
+*.qq.com = server:https://dns.alidns.com/dns-query
