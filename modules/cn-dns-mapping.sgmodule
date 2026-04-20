@@ -1,0 +1,6 @@
+#!name=CN DNS Mapping
+#!desc=Local DNS Mapping via DOMAIN-SET (Surge iOS 5.17+ / Mac 5.10+)
+
+[Host]
+DOMAIN-SET:https://cdn.jsdelivr.net/gh/Teakowa/cn-dns-module@main/modules/china-domains.txt = server:https://dns.alidns.com/dns-query
+DOMAIN-SET:https://cdn.jsdelivr.net/gh/Teakowa/cn-dns-module@main/modules/bytedance-domains.txt = server:https://doh.pub/dns-query

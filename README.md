@@ -1,10 +1,13 @@
 # cn-dns-module
 
-TypeScript tool that converts `dnsmasq-china-list` style domains into a Surge 4.x module using `[Host]` DNS server mapping.
+TypeScript generator for Surge DNS modules.
 
-## Why
+It generates two module styles:
 
-Surge Mac 4.x does not support binding `DOMAIN-SET` directly to DNS servers in `[Host]`, so this project generates plain `[Host]` entries.
+- `cn-dns-split.sgmodule`: expanded `[Host]` mappings (Surge 4.x compatible)
+- `cn-dns-mapping.sgmodule`: `DOMAIN-SET` Local DNS Mapping (Surge iOS 5.17+ / Mac 5.10+)
+
+`DOMAIN-SET` URLs use jsDelivr CDN acceleration.
 
 ## Install
 
@@ -15,28 +18,33 @@ pnpm install
 ## Build
 
 ```bash
-pnpm build
+pnpm run build
 ```
 
-## Generate
+## Generate all production artifacts
 
 ```bash
-pnpm gen -- --output examples/sample-output.sgmodule
+pnpm run generate:all
 ```
 
-Options:
+Generated outputs:
 
-- `--input <file-or-url>`: dnsmasq source (default: official `accelerated-domains.china.conf`)
-- `--output <path>`: output module path
-- `--cn-doh <url>`: CN DoH endpoint (default: `https://dns.alidns.com/dns-query`)
-- `--override-file <path>`: optional extra domains (one domain per line)
+- `modules/china-domains.txt`
+- `modules/bytedance-domains.txt`
+- `modules/cn-dns-split.sgmodule`
+- `modules/cn-dns-mapping.sgmodule`
+- `modules/README.md`
 
-## Output Format
+## Single-file generation
 
-The generated file contains:
+```bash
+node dist/index.js --mode surge4 --output examples/sample-output.sgmodule
+node dist/index.js --mode mapping --output examples/mapping-output.sgmodule --repo Teakowa/cn-dns-module --modules-dir modules
+```
 
-- module metadata header
-- `[Host]` section
-- two mappings per domain:
-  - `domain = server:<CN_DOH>`
-  - `*.domain = server:<CN_DOH>`
+## Optional arguments
+
+- `--input <file-or-url>`
+- `--cn-doh <url>`
+- `--bytedance-doh <url>`
+- `--override-file <path>` (extra domains appended to ByteDance list)
