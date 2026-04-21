@@ -4,8 +4,8 @@ TypeScript generator for Surge DNS modules.
 
 It generates two module styles:
 
-- `cn-dns-split.sgmodule`: expanded `[Host]` mappings (Surge 4.x compatible)
-- `cn-dns-mapping.sgmodule`: `DOMAIN-SET` Local DNS Mapping (Surge iOS 5.17+ / Mac 5.10+)
+- `cn-dns-split.sgmodule`: vendor-merged expanded `[Host]` mappings for Surge 4.x (no `RULE-SET` / `DOMAIN-SET`)
+- `cn-dns-mapping.sgmodule`: `DOMAIN-SET` Local DNS Mapping for Surge iOS 5.17+ / Mac 5.10+
 
 `DOMAIN-SET` URLs use jsDelivr CDN acceleration.
 
@@ -33,6 +33,7 @@ Generated outputs:
 - `modules/bytedance-domains.txt`
 - `modules/cn-dns-split.sgmodule`
 - `modules/cn-dns-mapping.sgmodule`
+- `modules/stats.json`
 - `modules/README.md`
 
 ## Single-file generation
