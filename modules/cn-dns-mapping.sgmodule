@@ -4,3 +4,4 @@
 [Host]
 DOMAIN-SET:https://cdn.jsdelivr.net/gh/Teakowa/cn-dns-module@main/modules/china-domains.txt = server:https://dns.alidns.com/dns-query
 DOMAIN-SET:https://cdn.jsdelivr.net/gh/Teakowa/cn-dns-module@main/modules/bytedance-domains.txt = server:https://doh.pub/dns-query
+DOMAIN-SET:https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Surge/Apple/Apple_Domain.list = server:https://dns.alidns.com/dns-query

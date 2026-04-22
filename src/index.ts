@@ -8,6 +8,7 @@ type Options = {
   output: string;
   cnDoh: string;
   bytedanceDoh: string;
+  appleDoh: string;
   overrideFile?: string;
   mode: Mode;
   generateAll: boolean;
@@ -27,8 +28,11 @@ const DEFAULT_INPUT =
 const DEFAULT_OUTPUT = "examples/sample-output.sgmodule";
 const DEFAULT_CN_DOH = "https://dns.alidns.com/dns-query";
 const DEFAULT_BYTEDANCE_DOH = "https://doh.pub/dns-query";
+const DEFAULT_APPLE_DOH = "https://dns.alidns.com/dns-query";
 const DEFAULT_MODULES_DIR = "modules";
 const DEFAULT_REPO = "Teakowa/cn-dns-module";
+const APPLE_SURGE_DOMAIN_LIST_URL =
+  "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Surge/Apple/Apple_Domain.list";
 
 const DEFAULT_BYTEDANCE_DOMAINS = [
   "amemv.com",
@@ -101,6 +105,12 @@ const VENDOR_CONFIGS: VendorConfig[] = [
     server: "https://doh.360.cn/dns-query",
     keywords: ["360.cn", "qihoo", "qhimg", "qhres", "hoowu"],
   },
+  {
+    key: "apple",
+    displayName: "Apple",
+    server: DEFAULT_APPLE_DOH,
+    keywords: [],
+  },
 ];
 
 function parseArgs(argv: string[]): Options {
@@ -109,6 +119,7 @@ function parseArgs(argv: string[]): Options {
     output: DEFAULT_OUTPUT,
     cnDoh: DEFAULT_CN_DOH,
     bytedanceDoh: DEFAULT_BYTEDANCE_DOH,
+    appleDoh: DEFAULT_APPLE_DOH,
     mode: "surge4",
     generateAll: false,
     modulesDir: DEFAULT_MODULES_DIR,
@@ -136,6 +147,11 @@ function parseArgs(argv: string[]): Options {
     }
     if (arg === "--bytedance-doh" && val) {
       opts.bytedanceDoh = val;
+      i += 1;
+      continue;
+    }
+    if (arg === "--apple-doh" && val) {
+      opts.appleDoh = val;
       i += 1;
       continue;
     }
@@ -179,7 +195,7 @@ function parseArgs(argv: string[]): Options {
 }
 
 function printHelp(): void {
-  console.log(`Usage: node dist/index.js [options]\n\nOptions:\n  --input <file-or-url>       dnsmasq list source\n  --output <path>             output sgmodule path for single mode\n  --mode <surge4|mapping>     single output mode (default surge4)\n  --cn-doh <url>              CN DoH endpoint\n  --bytedance-doh <url>       ByteDance preferred CN DoH endpoint\n  --override-file <path>      optional domain list, one per line\n  --generate-all              generate modules/* full artifacts\n  --modules-dir <path>        artifacts directory (default modules)\n  --repo <owner/name>         GitHub repo for jsDelivr URL\n  --help                      show help`);
+  console.log(`Usage: node dist/index.js [options]\n\nOptions:\n  --input <file-or-url>       dnsmasq list source\n  --output <path>             output sgmodule path for single mode\n  --mode <surge4|mapping>     single output mode (default surge4)\n  --cn-doh <url>              CN DoH endpoint\n  --bytedance-doh <url>       ByteDance preferred CN DoH endpoint\n  --apple-doh <url>           Apple preferred CN DoH endpoint\n  --override-file <path>      optional domain list, one per line\n  --generate-all              generate modules/* full artifacts\n  --modules-dir <path>        artifacts directory (default modules)\n  --repo <owner/name>         GitHub repo for jsDelivr URL\n  --help                      show help`);
 }
 
 async function readText(input: string): Promise<string> {
@@ -302,7 +318,8 @@ function renderMappingModule(
   repo: string,
   modulesDir: string,
   cnDoh: string,
-  bytedanceDoh: string
+  bytedanceDoh: string,
+  appleDoh: string
 ): string {
   const base = `https://cdn.jsdelivr.net/gh/${repo}@main/${trimSlashes(modulesDir)}`;
   return [
@@ -312,6 +329,7 @@ function renderMappingModule(
     "[Host]",
     `DOMAIN-SET:${base}/china-domains.txt = server:${cnDoh}`,
     `DOMAIN-SET:${base}/bytedance-domains.txt = server:${bytedanceDoh}`,
+    `DOMAIN-SET:${APPLE_SURGE_DOMAIN_LIST_URL} = server:${appleDoh}`,
     "",
   ].join("\n");
 }
@@ -333,11 +351,13 @@ function renderModulesReadme(repo: string, modulesDir: string): string {
     "",
     `- China domains: ${base}/china-domains.txt`,
     `- ByteDance domains: ${base}/bytedance-domains.txt`,
+    `- Apple domains (upstream): ${APPLE_SURGE_DOMAIN_LIST_URL}`,
     "",
     "## Notes",
     "",
     "- Surge 4.x module intentionally expands only vendor-classified domains to keep file size controllable.",
-    "- Surge 5.17+ module keeps full coverage via DOMAIN-SET.",
+    "- Surge 4.x module expands Apple domains from the external Apple_Domain.list source.",
+    "- Surge 5.17+ module keeps full coverage via DOMAIN-SET and directly references Apple_Domain.list.",
     "",
   ].join("\n");
 }
@@ -366,18 +386,39 @@ async function ensureParent(path: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
 }
 
-async function generateAll(opts: Options, allDomains: string[], overrideDomains: string[]): Promise<void> {
-  const modulesDir = opts.modulesDir;
-  await mkdir(modulesDir, { recursive: true });
-
-  const grouped = classifyVendors(allDomains);
+function withVendorOverrides(
+  grouped: Map<string, Set<string>>,
+  overrideDomains: string[],
+  appleDomains: string[]
+): Map<string, Set<string>> {
   const bytedanceSet = grouped.get("bytedance") ?? new Set<string>();
   for (const domain of [...DEFAULT_BYTEDANCE_DOMAINS, ...overrideDomains]) {
     bytedanceSet.add(normalizeDomain(domain));
   }
   grouped.set("bytedance", bytedanceSet);
 
-  const bytedanceDomains = sortedUnique(bytedanceSet);
+  const appleSet = grouped.get("apple") ?? new Set<string>();
+  for (const domain of appleDomains) {
+    appleSet.add(normalizeDomain(domain));
+  }
+  grouped.set("apple", appleSet);
+
+  return grouped;
+}
+
+async function generateAll(opts: Options, allDomains: string[], overrideDomains: string[]): Promise<void> {
+  const modulesDir = opts.modulesDir;
+  await mkdir(modulesDir, { recursive: true });
+
+  const appleDomains = sortedUnique(extractDomainsFromPlainList(await readText(APPLE_SURGE_DOMAIN_LIST_URL)));
+  const grouped = withVendorOverrides(classifyVendors(allDomains), overrideDomains, appleDomains);
+  for (const cfg of VENDOR_CONFIGS) {
+    if (cfg.key === "apple") {
+      cfg.server = opts.appleDoh;
+    }
+  }
+
+  const bytedanceDomains = sortedUnique(grouped.get("bytedance") ?? []);
   const chinaDomainsPath = `${modulesDir}/china-domains.txt`;
   const bytedanceDomainsPath = `${modulesDir}/bytedance-domains.txt`;
   const surge4ModulePath = `${modulesDir}/cn-dns-split.sgmodule`;
@@ -392,7 +433,7 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
   await writeFile(surge4ModulePath, surge4Module, "utf8");
   await writeFile(
     mappingModulePath,
-    renderMappingModule(opts.repo, modulesDir, opts.cnDoh, opts.bytedanceDoh),
+    renderMappingModule(opts.repo, modulesDir, opts.cnDoh, opts.bytedanceDoh, opts.appleDoh),
     "utf8"
   );
   await writeFile(modulesReadmePath, renderModulesReadme(opts.repo, modulesDir), "utf8");
@@ -427,19 +468,20 @@ async function main(): Promise<void> {
   if (opts.mode === "mapping") {
     await writeFile(
       opts.output,
-      renderMappingModule(opts.repo, opts.modulesDir, opts.cnDoh, opts.bytedanceDoh),
+      renderMappingModule(opts.repo, opts.modulesDir, opts.cnDoh, opts.bytedanceDoh, opts.appleDoh),
       "utf8"
     );
     console.log(`generated mapping module ${opts.output}`);
     return;
   }
 
-  const grouped = classifyVendors(allDomains);
-  const bytedanceSet = grouped.get("bytedance") ?? new Set<string>();
-  for (const domain of [...DEFAULT_BYTEDANCE_DOMAINS, ...overrideDomains]) {
-    bytedanceSet.add(normalizeDomain(domain));
+  const appleDomains = sortedUnique(extractDomainsFromPlainList(await readText(APPLE_SURGE_DOMAIN_LIST_URL)));
+  const grouped = withVendorOverrides(classifyVendors(allDomains), overrideDomains, appleDomains);
+  for (const cfg of VENDOR_CONFIGS) {
+    if (cfg.key === "apple") {
+      cfg.server = opts.appleDoh;
+    }
   }
-  grouped.set("bytedance", bytedanceSet);
 
   const output = renderSurge4Module(grouped);
   await writeFile(opts.output, output, "utf8");
