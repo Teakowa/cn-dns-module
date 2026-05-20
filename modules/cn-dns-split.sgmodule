@@ -448,8 +448,6 @@ xiaoxintoutiao.com = server:https://doh.pub/dns-query
 *.xiaoxintoutiao.com = server:https://doh.pub/dns-query
 xinpintoutiao.com = server:https://doh.pub/dns-query
 *.xinpintoutiao.com = server:https://doh.pub/dns-query
-zixigua.com = server:https://doh.pub/dns-query
-*.zixigua.com = server:https://doh.pub/dns-query
 
 # Tencent
 0536weixin.com = server:https://doh.pub/dns-query
@@ -2572,8 +2570,6 @@ aliyunga8603.com = server:https://dns.alidns.com/dns-query
 *.aliyunga8603.com = server:https://dns.alidns.com/dns-query
 aliyungf.com = server:https://dns.alidns.com/dns-query
 *.aliyungf.com = server:https://dns.alidns.com/dns-query
-aliyungrtn.com = server:https://dns.alidns.com/dns-query
-*.aliyungrtn.com = server:https://dns.alidns.com/dns-query
 aliyunhelp.com = server:https://dns.alidns.com/dns-query
 *.aliyunhelp.com = server:https://dns.alidns.com/dns-query
 aliyunhn.com = server:https://dns.alidns.com/dns-query
