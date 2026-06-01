@@ -386,6 +386,17 @@ async function ensureParent(path: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
 }
 
+async function readTextIfExists(path: string): Promise<string> {
+  try {
+    return await readFile(path, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return "";
+    }
+    throw err;
+  }
+}
+
 function withVendorOverrides(
   grouped: Map<string, Set<string>>,
   overrideDomains: string[],
@@ -427,9 +438,17 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
   const statsPath = `${modulesDir}/stats.json`;
 
   const surge4Module = renderSurge4Module(grouped);
+  const chinaDomainsContent = `${allDomains.join("\n")}\n`;
+  const bytedanceDomainsContent = `${bytedanceDomains.join("\n")}\n`;
+  const [existingChinaDomainsContent, existingBytedanceDomainsContent] = await Promise.all([
+    readTextIfExists(chinaDomainsPath),
+    readTextIfExists(bytedanceDomainsPath),
+  ]);
+  const hasDomainUpdate =
+    existingChinaDomainsContent !== chinaDomainsContent || existingBytedanceDomainsContent !== bytedanceDomainsContent;
 
-  await writeFile(chinaDomainsPath, `${allDomains.join("\n")}\n`, "utf8");
-  await writeFile(bytedanceDomainsPath, `${bytedanceDomains.join("\n")}\n`, "utf8");
+  await writeFile(chinaDomainsPath, chinaDomainsContent, "utf8");
+  await writeFile(bytedanceDomainsPath, bytedanceDomainsContent, "utf8");
   await writeFile(surge4ModulePath, surge4Module, "utf8");
   await writeFile(
     mappingModulePath,
@@ -437,14 +456,20 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
     "utf8"
   );
   await writeFile(modulesReadmePath, renderModulesReadme(opts.repo, modulesDir), "utf8");
-  await writeFile(statsPath, buildStats(allDomains.length, grouped, surge4Module.split(/\r?\n/).length), "utf8");
+  if (hasDomainUpdate) {
+    await writeFile(statsPath, buildStats(allDomains.length, grouped, surge4Module.split(/\r?\n/).length), "utf8");
+  }
 
   console.log(`generated ${chinaDomainsPath} with ${allDomains.length} domains`);
   console.log(`generated ${bytedanceDomainsPath} with ${bytedanceDomains.length} domains`);
   console.log(`generated ${surge4ModulePath}`);
   console.log(`generated ${mappingModulePath}`);
   console.log(`generated ${modulesReadmePath}`);
-  console.log(`generated ${statsPath}`);
+  if (hasDomainUpdate) {
+    console.log(`generated ${statsPath}`);
+  } else {
+    console.log(`skipped ${statsPath} (no domain updates)`);
+  }
 }
 
 async function main(): Promise<void> {
