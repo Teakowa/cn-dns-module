@@ -1,0 +1,11 @@
+name: "CN DNS"
+description: "Direct CN and ByteDance traffic via remote Egern rule sets"
+homepage: "https://github.com/Teakowa/cn-dns-module"
+
+rules:
+  - rule_set:
+      match: "https://cdn.jsdelivr.net/gh/Teakowa/cn-dns-module@main/modules/china-domains.egern.yaml"
+      policy: "DIRECT"
+  - rule_set:
+      match: "https://cdn.jsdelivr.net/gh/Teakowa/cn-dns-module@main/modules/bytedance-domains.egern.yaml"
+      policy: "DIRECT"

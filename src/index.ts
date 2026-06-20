@@ -25,7 +25,7 @@ type VendorConfig = {
 
 const DEFAULT_INPUT =
   "https://raw.githubusercontent.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf";
-const DEFAULT_OUTPUT = "examples/sample-output.egern.yaml";
+const DEFAULT_OUTPUT = "examples/sample-output.egern.module.yaml";
 const DEFAULT_CN_DOH = "https://dns.alidns.com/dns-query";
 const DEFAULT_BYTEDANCE_DOH = "https://doh.pub/dns-query";
 const DEFAULT_APPLE_DOH = "https://dns.alidns.com/dns-query";
@@ -338,11 +338,30 @@ function renderEgernRuleSet(domains: string[]): string {
   return ["domain_suffix_set:", ...domains.map((domain) => `  - ${domain}`), ""].join("\n");
 }
 
+function renderEgernModule(repo: string, modulesDir: string): string {
+  const base = `https://cdn.jsdelivr.net/gh/${repo}@main/${trimSlashes(modulesDir)}`;
+  return [
+    'name: "CN DNS"',
+    'description: "Direct CN and ByteDance traffic via remote Egern rule sets"',
+    `homepage: "https://github.com/${repo}"`,
+    "",
+    "rules:",
+    "  - rule_set:",
+    `      match: "${base}/china-domains.egern.yaml"`,
+    '      policy: "DIRECT"',
+    "  - rule_set:",
+    `      match: "${base}/bytedance-domains.egern.yaml"`,
+    '      policy: "DIRECT"',
+    "",
+  ].join("\n");
+}
+
 function renderModulesReadme(repo: string, modulesDir: string): string {
   const base = `https://cdn.jsdelivr.net/gh/${repo}@main/${trimSlashes(modulesDir)}`;
   return [
     "# Modules",
     "",
+    "- `cn-dns.egern.module.yaml`: Egern module entrypoint that wires the maintained China and ByteDance rule sets into `rules:`.",
     "- `china-domains.egern.yaml`: Egern `domain_suffix_set` rule set for the full China domain list.",
     "- `bytedance-domains.egern.yaml`: Egern `domain_suffix_set` rule set for ByteDance domains.",
     "- `cn-dns-split.sgmodule`: Frozen Surge 4.x expanded [Host] mappings. Unmaintained.",
@@ -350,10 +369,14 @@ function renderModulesReadme(repo: string, modulesDir: string): string {
     "",
     "## Suggested Subscriptions",
     "",
-    `- Egern China rule set: ${base}/china-domains.egern.yaml`,
-    `- Egern ByteDance rule set: ${base}/bytedance-domains.egern.yaml`,
+    `- Egern module: ${base}/cn-dns.egern.module.yaml`,
     `- Surge 4.x (frozen): ${base}/cn-dns-split.sgmodule`,
     `- Surge 5.17+ (frozen): ${base}/cn-dns-mapping.sgmodule`,
+    "",
+    "## Egern Rule Sets",
+    "",
+    `- China: ${base}/china-domains.egern.yaml`,
+    `- ByteDance: ${base}/bytedance-domains.egern.yaml`,
     "",
     "## Domain Lists",
     "",
@@ -363,7 +386,8 @@ function renderModulesReadme(repo: string, modulesDir: string): string {
     "",
     "## Notes",
     "",
-    "- Egern rule sets are the maintained output format for this repository.",
+    "- Egern module is the maintained end-user entrypoint for this repository.",
+    "- Egern rule sets are kept as module dependencies and for advanced manual composition.",
     "- Surge artifacts are kept for existing subscribers but are no longer actively maintained.",
     "- Surge 4.x module intentionally expands only vendor-classified domains to keep file size controllable.",
     "- Surge 4.x module expands Apple domains from the external Apple_Domain.list source.",
@@ -442,6 +466,7 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
   const bytedanceDomains = sortedUnique(grouped.get("bytedance") ?? []);
   const chinaDomainsPath = `${modulesDir}/china-domains.txt`;
   const bytedanceDomainsPath = `${modulesDir}/bytedance-domains.txt`;
+  const egernModulePath = `${modulesDir}/cn-dns.egern.module.yaml`;
   const chinaEgernPath = `${modulesDir}/china-domains.egern.yaml`;
   const bytedanceEgernPath = `${modulesDir}/bytedance-domains.egern.yaml`;
   const surge4ModulePath = `${modulesDir}/cn-dns-split.sgmodule`;
@@ -452,6 +477,7 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
   const surge4Module = renderSurge4Module(grouped);
   const chinaDomainsContent = `${allDomains.join("\n")}\n`;
   const bytedanceDomainsContent = `${bytedanceDomains.join("\n")}\n`;
+  const egernModuleContent = renderEgernModule(opts.repo, modulesDir);
   const chinaEgernContent = renderEgernRuleSet(allDomains);
   const bytedanceEgernContent = renderEgernRuleSet(bytedanceDomains);
   const [existingChinaDomainsContent, existingBytedanceDomainsContent] = await Promise.all([
@@ -463,6 +489,7 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
 
   await writeFile(chinaDomainsPath, chinaDomainsContent, "utf8");
   await writeFile(bytedanceDomainsPath, bytedanceDomainsContent, "utf8");
+  await writeFile(egernModulePath, egernModuleContent, "utf8");
   await writeFile(chinaEgernPath, chinaEgernContent, "utf8");
   await writeFile(bytedanceEgernPath, bytedanceEgernContent, "utf8");
   await writeFile(surge4ModulePath, surge4Module, "utf8");
@@ -478,6 +505,7 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
 
   console.log(`generated ${chinaDomainsPath} with ${allDomains.length} domains`);
   console.log(`generated ${bytedanceDomainsPath} with ${bytedanceDomains.length} domains`);
+  console.log(`generated ${egernModulePath}`);
   console.log(`generated ${chinaEgernPath}`);
   console.log(`generated ${bytedanceEgernPath}`);
   console.log(`generated ${surge4ModulePath}`);
@@ -519,9 +547,9 @@ async function main(): Promise<void> {
   }
 
   if (opts.mode === "egern") {
-    const output = renderEgernRuleSet(allDomains);
+    const output = renderEgernModule(opts.repo, opts.modulesDir);
     await writeFile(opts.output, output, "utf8");
-    console.log(`generated Egern rule set ${opts.output}`);
+    console.log(`generated Egern module ${opts.output}`);
     return;
   }
 
