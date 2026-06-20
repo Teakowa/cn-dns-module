@@ -1,13 +1,18 @@
 # cn-dns-module
 
-TypeScript generator for Surge DNS modules.
+TypeScript generator for Egern rule sets and frozen Surge DNS modules.
 
-It generates two module styles:
+Maintained outputs:
 
-- `cn-dns-split.sgmodule`: vendor-merged expanded `[Host]` mappings for Surge 4.x (no `RULE-SET` / `DOMAIN-SET`)
+- `china-domains.egern.yaml`: full China domain `domain_suffix_set` for Egern
+- `bytedance-domains.egern.yaml`: ByteDance `domain_suffix_set` for Egern
+
+Frozen outputs kept for existing users:
+
+- `cn-dns-split.sgmodule`: vendor-merged expanded `[Host]` mappings for Surge 4.x
 - `cn-dns-mapping.sgmodule`: `DOMAIN-SET` Local DNS Mapping for Surge iOS 5.17+ / Mac 5.10+
 
-`DOMAIN-SET` URLs use jsDelivr CDN acceleration.
+Surge artifacts are no longer maintained. New usage should target Egern.
 
 ## Install
 
@@ -31,6 +36,8 @@ Generated outputs:
 
 - `modules/china-domains.txt`
 - `modules/bytedance-domains.txt`
+- `modules/china-domains.egern.yaml`
+- `modules/bytedance-domains.egern.yaml`
 - `modules/cn-dns-split.sgmodule`
 - `modules/cn-dns-mapping.sgmodule`
 - `modules/stats.json`
@@ -39,13 +46,14 @@ Generated outputs:
 ## Single-file generation
 
 ```bash
-node dist/index.js --mode surge4 --output examples/sample-output.sgmodule
+node dist/index.js --mode egern --output examples/sample-output.egern.yaml
 node dist/index.js --mode mapping --output examples/mapping-output.sgmodule --repo Teakowa/cn-dns-module --modules-dir modules
 ```
 
 ## Optional arguments
 
 - `--input <file-or-url>`
+- `--mode <surge4|mapping|egern>`
 - `--cn-doh <url>`
 - `--bytedance-doh <url>`
 - `--override-file <path>` (extra domains appended to ByteDance list)

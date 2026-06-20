@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Generate Surge DNS modules from dnsmasq domain lists",
+  "description": "Generate Egern rule sets and frozen Surge modules from dnsmasq domain lists",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "gen": "node dist/index.js --mode surge4",
+    "gen": "node dist/index.js --mode egern",
     "generate:all": "node dist/index.js --generate-all --modules-dir modules --repo Teakowa/cn-dns-module"
   },
   "devDependencies": {

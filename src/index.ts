@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-type Mode = "surge4" | "mapping";
+type Mode = "surge4" | "mapping" | "egern";
 
 type Options = {
   input: string;
@@ -25,7 +25,7 @@ type VendorConfig = {
 
 const DEFAULT_INPUT =
   "https://raw.githubusercontent.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf";
-const DEFAULT_OUTPUT = "examples/sample-output.sgmodule";
+const DEFAULT_OUTPUT = "examples/sample-output.egern.yaml";
 const DEFAULT_CN_DOH = "https://dns.alidns.com/dns-query";
 const DEFAULT_BYTEDANCE_DOH = "https://doh.pub/dns-query";
 const DEFAULT_APPLE_DOH = "https://dns.alidns.com/dns-query";
@@ -120,7 +120,7 @@ function parseArgs(argv: string[]): Options {
     cnDoh: DEFAULT_CN_DOH,
     bytedanceDoh: DEFAULT_BYTEDANCE_DOH,
     appleDoh: DEFAULT_APPLE_DOH,
-    mode: "surge4",
+    mode: "egern",
     generateAll: false,
     modulesDir: DEFAULT_MODULES_DIR,
     repo: DEFAULT_REPO,
@@ -161,7 +161,7 @@ function parseArgs(argv: string[]): Options {
       continue;
     }
     if (arg === "--mode" && val) {
-      if (val !== "surge4" && val !== "mapping") {
+      if (val !== "surge4" && val !== "mapping" && val !== "egern") {
         throw new Error(`Invalid --mode: ${val}`);
       }
       opts.mode = val;
@@ -195,7 +195,7 @@ function parseArgs(argv: string[]): Options {
 }
 
 function printHelp(): void {
-  console.log(`Usage: node dist/index.js [options]\n\nOptions:\n  --input <file-or-url>       dnsmasq list source\n  --output <path>             output sgmodule path for single mode\n  --mode <surge4|mapping>     single output mode (default surge4)\n  --cn-doh <url>              CN DoH endpoint\n  --bytedance-doh <url>       ByteDance preferred CN DoH endpoint\n  --apple-doh <url>           Apple preferred CN DoH endpoint\n  --override-file <path>      optional domain list, one per line\n  --generate-all              generate modules/* full artifacts\n  --modules-dir <path>        artifacts directory (default modules)\n  --repo <owner/name>         GitHub repo for jsDelivr URL\n  --help                      show help`);
+  console.log(`Usage: node dist/index.js [options]\n\nOptions:\n  --input <file-or-url>       dnsmasq list source\n  --output <path>             output path for single mode\n  --mode <surge4|mapping|egern> single output mode (default egern)\n  --cn-doh <url>              CN DoH endpoint\n  --bytedance-doh <url>       ByteDance preferred CN DoH endpoint\n  --apple-doh <url>           Apple preferred CN DoH endpoint\n  --override-file <path>      optional domain list, one per line\n  --generate-all              generate modules/* full artifacts\n  --modules-dir <path>        artifacts directory (default modules)\n  --repo <owner/name>         GitHub repo for jsDelivr URL\n  --help                      show help`);
 }
 
 async function readText(input: string): Promise<string> {
@@ -334,18 +334,26 @@ function renderMappingModule(
   ].join("\n");
 }
 
+function renderEgernRuleSet(domains: string[]): string {
+  return ["domain_suffix_set:", ...domains.map((domain) => `  - ${domain}`), ""].join("\n");
+}
+
 function renderModulesReadme(repo: string, modulesDir: string): string {
   const base = `https://cdn.jsdelivr.net/gh/${repo}@main/${trimSlashes(modulesDir)}`;
   return [
     "# Modules",
     "",
-    "- `cn-dns-split.sgmodule`: Vendor-merged expanded [Host] mappings for Surge 4.x (no RULE-SET).",
-    "- `cn-dns-mapping.sgmodule`: DOMAIN-SET based Local DNS Mapping for Surge iOS 5.17+ / Mac 5.10+.",
+    "- `china-domains.egern.yaml`: Egern `domain_suffix_set` rule set for the full China domain list.",
+    "- `bytedance-domains.egern.yaml`: Egern `domain_suffix_set` rule set for ByteDance domains.",
+    "- `cn-dns-split.sgmodule`: Frozen Surge 4.x expanded [Host] mappings. Unmaintained.",
+    "- `cn-dns-mapping.sgmodule`: Frozen Surge 5.17+ DOMAIN-SET mapping module. Unmaintained.",
     "",
     "## Suggested Subscriptions",
     "",
-    `- Expanded (Surge 4.x): ${base}/cn-dns-split.sgmodule`,
-    `- Mapping (Surge 5.17+): ${base}/cn-dns-mapping.sgmodule`,
+    `- Egern China rule set: ${base}/china-domains.egern.yaml`,
+    `- Egern ByteDance rule set: ${base}/bytedance-domains.egern.yaml`,
+    `- Surge 4.x (frozen): ${base}/cn-dns-split.sgmodule`,
+    `- Surge 5.17+ (frozen): ${base}/cn-dns-mapping.sgmodule`,
     "",
     "## Domain Lists",
     "",
@@ -355,6 +363,8 @@ function renderModulesReadme(repo: string, modulesDir: string): string {
     "",
     "## Notes",
     "",
+    "- Egern rule sets are the maintained output format for this repository.",
+    "- Surge artifacts are kept for existing subscribers but are no longer actively maintained.",
     "- Surge 4.x module intentionally expands only vendor-classified domains to keep file size controllable.",
     "- Surge 4.x module expands Apple domains from the external Apple_Domain.list source.",
     "- Surge 5.17+ module keeps full coverage via DOMAIN-SET and directly references Apple_Domain.list.",
@@ -432,6 +442,8 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
   const bytedanceDomains = sortedUnique(grouped.get("bytedance") ?? []);
   const chinaDomainsPath = `${modulesDir}/china-domains.txt`;
   const bytedanceDomainsPath = `${modulesDir}/bytedance-domains.txt`;
+  const chinaEgernPath = `${modulesDir}/china-domains.egern.yaml`;
+  const bytedanceEgernPath = `${modulesDir}/bytedance-domains.egern.yaml`;
   const surge4ModulePath = `${modulesDir}/cn-dns-split.sgmodule`;
   const mappingModulePath = `${modulesDir}/cn-dns-mapping.sgmodule`;
   const modulesReadmePath = `${modulesDir}/README.md`;
@@ -440,6 +452,8 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
   const surge4Module = renderSurge4Module(grouped);
   const chinaDomainsContent = `${allDomains.join("\n")}\n`;
   const bytedanceDomainsContent = `${bytedanceDomains.join("\n")}\n`;
+  const chinaEgernContent = renderEgernRuleSet(allDomains);
+  const bytedanceEgernContent = renderEgernRuleSet(bytedanceDomains);
   const [existingChinaDomainsContent, existingBytedanceDomainsContent] = await Promise.all([
     readTextIfExists(chinaDomainsPath),
     readTextIfExists(bytedanceDomainsPath),
@@ -449,6 +463,8 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
 
   await writeFile(chinaDomainsPath, chinaDomainsContent, "utf8");
   await writeFile(bytedanceDomainsPath, bytedanceDomainsContent, "utf8");
+  await writeFile(chinaEgernPath, chinaEgernContent, "utf8");
+  await writeFile(bytedanceEgernPath, bytedanceEgernContent, "utf8");
   await writeFile(surge4ModulePath, surge4Module, "utf8");
   await writeFile(
     mappingModulePath,
@@ -462,6 +478,8 @@ async function generateAll(opts: Options, allDomains: string[], overrideDomains:
 
   console.log(`generated ${chinaDomainsPath} with ${allDomains.length} domains`);
   console.log(`generated ${bytedanceDomainsPath} with ${bytedanceDomains.length} domains`);
+  console.log(`generated ${chinaEgernPath}`);
+  console.log(`generated ${bytedanceEgernPath}`);
   console.log(`generated ${surge4ModulePath}`);
   console.log(`generated ${mappingModulePath}`);
   console.log(`generated ${modulesReadmePath}`);
@@ -497,6 +515,13 @@ async function main(): Promise<void> {
       "utf8"
     );
     console.log(`generated mapping module ${opts.output}`);
+    return;
+  }
+
+  if (opts.mode === "egern") {
+    const output = renderEgernRuleSet(allDomains);
+    await writeFile(opts.output, output, "utf8");
+    console.log(`generated Egern rule set ${opts.output}`);
     return;
   }
 
