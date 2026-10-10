@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-10-08T23:44:31.547Z",
-  "totalChinaDomains": 111011,
+  "generatedAt": "2026-10-10T22:32:25.130Z",
+  "totalChinaDomains": 110205,
   "vendorCounts": {
     "bytedance": 268,
-    "tencent": 880,
-    "alibaba": 228,
+    "tencent": 872,
+    "alibaba": 227,
     "bilibili": 16,
-    "xiaomi": 249,
+    "xiaomi": 245,
     "baidu": 72,
     "qihoo360": 13,
     "apple": 1560
   },
-  "splitModuleLineCount": 6603
+  "splitModuleLineCount": 6577
 }
